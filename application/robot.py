@@ -65,7 +65,7 @@ async def on_candidate(data):
     await pc.addIceCandidate(candidate)
 
 async def main():
-    await sio.connect("http://192.168.1.4:9010")  
+    await sio.connect("https://application-8mai.onrender.com")  
     await sio.wait()
 
 if __name__ == "__main__":
