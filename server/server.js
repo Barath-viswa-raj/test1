@@ -2,7 +2,7 @@ const { Server } = require("socket.io");
 
 const io = new Server(9010, {
   cors: {
-    origin: "*",
+    origin: "https://application-zeta-pied.vercel.app",
   },
 });
 
