@@ -1,15 +1,39 @@
 import socketio
 import asyncio
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
+from aiortc import (
+    RTCConfiguration,
+    RTCIceServer,
+    RTCPeerConnection,
+    RTCSessionDescription,
+    RTCIceCandidate
+)
 from aiortc.contrib.media import MediaPlayer
-import json
 
+# STUN + TURN config (Metered.ca for testing)
+ice_servers = [
+    RTCIceServer(urls="stun:stun.l.google.com:19302"),
+    RTCIceServer(
+        urls="turn:openrelay.metered.ca:80",
+        username="openrelayproject",
+        credential="openrelayproject"
+    ),
+    RTCIceServer(
+        urls="turn:openrelay.metered.ca:443",
+        username="openrelayproject",
+        credential="openrelayproject"
+    ),
+    RTCIceServer(
+        urls="turn:openrelay.metered.ca:443?transport=tcp",
+        username="openrelayproject",
+        credential="openrelayproject"
+    )
+]
+rtc_config = RTCConfiguration(iceServers=ice_servers)
 sio = socketio.AsyncClient()
-pc = RTCPeerConnection()
-dc = None  # DataChannel
+pc = RTCPeerConnection(rtc_config)
+dc = None
 
 async def setup_media():
-    # Change this based on your device (use ffmpeg to list)
     return MediaPlayer("video=Chicony USB2.0 Camera", format="dshow")
 
 @sio.event
@@ -20,15 +44,12 @@ async def connect():
 @sio.event
 async def offer(data):
     print("📥 Received offer")
-    offer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
-    await pc.setRemoteDescription(offer)
+    await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["type"]))
 
-    # Add webcam stream
     player = await setup_media()
     if player.video:
         pc.addTrack(player.video)
 
-    # DataChannel support
     @pc.on("datachannel")
     def on_datachannel(channel):
         global dc
@@ -65,7 +86,7 @@ async def on_candidate(data):
     await pc.addIceCandidate(candidate)
 
 async def main():
-    await sio.connect("https://application-8mai.onrender.com")  
+    await sio.connect("https://application-8mai.onrender.com")
     await sio.wait()
 
 if __name__ == "__main__":

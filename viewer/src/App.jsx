@@ -1,7 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
+// ✅ Signaling Server URL
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
+
+const iceServers = {
+  iceServers: [
+    {
+      urls: "stun:stun.l.google.com:19302",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80", 
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+};
 
 function App() {
   const videoRef = useRef(null);
@@ -10,7 +34,8 @@ function App() {
   const [robotReady, setRobotReady] = useState(false);
 
   useEffect(() => {
-    pcRef.current = new RTCPeerConnection();
+    // ✅ Initialize RTCPeerConnection with TURN/STUN config
+    pcRef.current = new RTCPeerConnection(iceServers);
     socketRef.current = io(SIGNALING_SERVER_URL);
 
     socketRef.current.on("connect", () => {
@@ -29,14 +54,14 @@ function App() {
     });
 
     pcRef.current.ontrack = (event) => {
-      console.log(" Track received");
+      console.log("Track received");
       videoRef.current.srcObject = event.streams[0];
     };
   }, []);
 
   const startStream = async () => {
     if (!robotReady) {
-      console.warn(" Robot is not connected");
+      console.warn("Robot is not connected");
       return;
     }
 

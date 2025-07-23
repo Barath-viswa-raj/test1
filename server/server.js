@@ -31,7 +31,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if (socket === robotSocket) {
-      console.log(" Robot disconnected");
+      console.log(" Robot disconnected");``
       robotSocket = null;
     }
   });
