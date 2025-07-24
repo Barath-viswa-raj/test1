@@ -41,7 +41,7 @@ async def connect():
 
 @sio.event
 async def offer(data):
-    print("📥 Received offer")
+    print("Received offer")
     await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["type"]))
 
     player = await setup_media()
@@ -52,13 +52,14 @@ async def offer(data):
     def on_datachannel(channel):
         global dc
         dc = channel
-        print("🔄 DataChannel created")
+        print("DataChannel created")
+
+        dc.send("Hello from Robot!")
 
         @channel.on("message")
         def on_message(msg):
-            print(f"📨 Received command: {msg}")
-            if msg == "stop":
-                print("🛑 Stopping...")
+            print(f"Received command:", msg)
+            channel.send("Ack:"+ msg)
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)

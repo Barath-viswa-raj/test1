@@ -3,7 +3,6 @@ import io from "socket.io-client";
 
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
-
 const iceServers = {
   iceServers: [
     {
@@ -29,31 +28,69 @@ function App() {
   const videoRef = useRef(null);
   const pcRef = useRef(null);
   const socketRef = useRef(null);
+  const dataChannelRef = useRef(null);
+
   const [robotReady, setRobotReady] = useState(false);
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState([]);
 
   useEffect(() => {
-   
-    pcRef.current = new RTCPeerConnection(iceServers);
-    socketRef.current = io(SIGNALING_SERVER_URL);
+    const socket = io(SIGNALING_SERVER_URL);
+    socketRef.current = socket;
 
-    socketRef.current.on("connect", () => {
+    const pc = new RTCPeerConnection(iceServers);
+    pcRef.current = pc;
+
+    // Create DataChannel
+    const dc = pc.createDataChannel("chat");
+    dataChannelRef.current = dc;
+
+    dc.onopen = () => {
+      console.log("DataChannel open");
+    };
+
+    dc.onmessage = (event) => {
+      console.log("Message from robot:", event.data);
+      setChat((prev) => [...prev, { sender: "robot", text: event.data }]);
+    };
+
+    pc.ontrack = (event) => {
+      console.log("Track received");
+      videoRef.current.srcObject = event.streams[0];
+    };
+
+    socket.on("connect", () => {
       console.log("Connected to signaling server");
     });
 
-    socketRef.current.on("robot-ready", () => {
+    socket.on("robot-ready", () => {
       console.log("Robot is ready");
       setRobotReady(true);
     });
 
-    socketRef.current.on("answer", async (data) => {
+    socket.on("answer", async (data) => {
       console.log("Answer received from robot");
       const answer = new RTCSessionDescription(data);
-      await pcRef.current.setRemoteDescription(answer);
+      await pc.setRemoteDescription(answer);
     });
 
-    pcRef.current.ontrack = (event) => {
-      console.log("Track received");
-      videoRef.current.srcObject = event.streams[0];
+    socket.on("ice-candidate", async (candidate) => {
+      try {
+        await pc.addIceCandidate(candidate);
+        console.log("Added ICE candidate from robot");
+      } catch (e) {
+        console.error("Error adding ICE candidate", e);
+      }
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("ice-candidate", event.candidate);
+      }
+    };
+
+    return () => {
+      socket.disconnect();
     };
   }, []);
 
@@ -76,8 +113,18 @@ function App() {
     console.log("Offer sent to robot");
   };
 
+  const sendMessage = () => {
+    if (dataChannelRef.current?.readyState === "open") {
+      dataChannelRef.current.send(message);
+      setChat((prev) => [...prev, { sender: "you", text: message }]);
+      setMessage("");
+    } else {
+      console.warn("DataChannel is not open");
+    }
+  };
+
   return (
-    <div>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
       <h2>Live Robot Feed</h2>
       <video
         ref={videoRef}
@@ -89,6 +136,33 @@ function App() {
       <br />
       <button onClick={startStream} disabled={!robotReady}>
         Start Camera
+      </button>
+
+      <hr />
+
+      <h3>Chat with Robot</h3>
+      <div
+        style={{
+          border: "1px solid #ccc",
+          padding: "10px",
+          maxHeight: "200px",
+          overflowY: "auto",
+        }}
+      >
+        {chat.map((msg, idx) => (
+          <div key={idx}>
+            <strong>{msg.sender}:</strong> {msg.text}
+          </div>
+        ))}
+      </div>
+      <input
+        type="text"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Send message to robot"
+      />
+      <button onClick={sendMessage} disabled={!robotReady || !message}>
+        Send
       </button>
     </div>
   );
