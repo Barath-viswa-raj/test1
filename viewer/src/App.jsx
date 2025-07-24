@@ -6,20 +6,12 @@ const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 const iceServers = {
   iceServers: [
     {
-      urls: ["stun:bn-turn1.xirsys.com"],
+       urls: "stun:stun.l.google.com:19302"
     },
     {
-      urls: [
-        "turn:bn-turn1.xirsys.com:80?transport=udp",
-        "turn:bn-turn1.xirsys.com:3478?transport=udp",
-        "turn:bn-turn1.xirsys.com:80?transport=tcp",
-        "turn:bn-turn1.xirsys.com:3478?transport=tcp",
-        "turns:bn-turn1.xirsys.com:443?transport=tcp",
-        "turns:bn-turn1.xirsys.com:5349?transport=tcp",
-      ],
-      username:
-        "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-      credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004",
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject"
     },
   ],
 };
@@ -142,12 +134,15 @@ function App() {
         <h3>Command Chat</h3>
         <div
           style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
             border: "1px solid #ccc",
             height: "150px",
             padding: "10px",
             overflowY: "scroll",
-            background: "#f9f9f9",
-            marginBottom: "10px",
+            background: "#000000ff",
+            marginBottom: "10px"
           }}
         >
           {chatLog.map((line, idx) => (

@@ -10,18 +10,11 @@ from aiortc import (
 from aiortc.contrib.media import MediaPlayer
 
 ice_servers = [
-    RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+    RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
     RTCIceServer(
-        urls=[
-            "turn:bn-turn1.xirsys.com:80?transport=udp",
-            "turn:bn-turn1.xirsys.com:3478?transport=udp",
-            "turn:bn-turn1.xirsys.com:80?transport=tcp",
-            "turn:bn-turn1.xirsys.com:3478?transport=tcp",
-            "turns:bn-turn1.xirsys.com:443?transport=tcp",
-            "turns:bn-turn1.xirsys.com:5349?transport=tcp"
-        ],
-        username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-        credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        urls=["turn:openrelay.metered.ca:80"],
+        username="openrelayproject",
+        credential="openrelayproject"
     )
 ]
 
