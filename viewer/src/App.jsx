@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-const SIGNALING_SERVER_URL = "http://localhost:9010"; // change to your server IP if needed
-
+const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 const App = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [robotReady, setRobotReady] = useState(false);
