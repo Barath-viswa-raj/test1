@@ -9,7 +9,6 @@ from aiortc import (
 )
 from aiortc.contrib.media import MediaPlayer
 
-
 ice_servers = [
     RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
     RTCIceServer(
@@ -31,35 +30,42 @@ sio = socketio.AsyncClient()
 pc = RTCPeerConnection(rtc_config)
 dc = None
 
+# 📷 Optional: Setup webcam
 async def setup_media():
     return MediaPlayer("video=Chicony USB2.0 Camera", format="dshow")
 
+# 📡 Handle signaling connection
 @sio.event
 async def connect():
-    print("Connected to signaling server")
+    print("✅ Connected to signaling server")
     await sio.emit("register-robot")
 
+# ✅ Always listen for datachannel once at start
+@pc.on("datachannel")
+def on_datachannel(channel):
+    global dc
+    dc = channel
+    print("📡 DataChannel created with frontend")
+
+    @channel.on("message")
+    def on_message(msg):
+        print(f"📥 Received from frontend:", msg)
+        reply = "Ack: " + msg
+        print(f"📤 Sending back: {reply}")
+        channel.send(reply)
+
+    # Send a hello message immediately after establishing
+    dc.send("🤖 Robot ready (DataChannel active)")
+
+# 📞 Handle WebRTC offer
 @sio.event
 async def offer(data):
-    print("Received offer")
+    print("📩 Received offer")
     await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["type"]))
 
     player = await setup_media()
     if player.video:
         pc.addTrack(player.video)
-
-    @pc.on("datachannel")
-    def on_datachannel(channel):
-        global dc
-        dc = channel
-        print("DataChannel created")
-
-        dc.send("Hello from Robot!")
-
-        @channel.on("message")
-        def on_message(msg):
-            print(f"Received command:", msg)
-            channel.send("Ack:"+ msg)
 
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
@@ -68,7 +74,9 @@ async def offer(data):
         "sdp": pc.localDescription.sdp,
         "type": pc.localDescription.type
     })
+    print("✅ Sent answer")
 
+# ❄️ Handle ICE candidates
 @sio.on("candidate")
 async def on_candidate(data):
     candidate = RTCIceCandidate(
@@ -84,6 +92,7 @@ async def on_candidate(data):
     )
     await pc.addIceCandidate(candidate)
 
+# 🔁 Main loop
 async def main():
     await sio.connect("https://application-8mai.onrender.com")
     await sio.wait()
