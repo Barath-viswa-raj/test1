@@ -3,15 +3,15 @@ import io from "socket.io-client";
 
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
-const iceServers = {
+const iceConfig = {
   iceServers: [
-    {
-       urls: "stun:stun.l.google.com:19302"
-    },
     {
       urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
       credential: "openrelayproject"
+    },
+    {
+      urls: "stun:stun.l.google.com:19302"
     },
   ],
 };
@@ -22,111 +22,123 @@ function App() {
   const socketRef = useRef(null);
   const dataChannelRef = useRef(null);
 
-  const [robotReady, setRobotReady] = useState(false);
   const [message, setMessage] = useState("");
   const [chatLog, setChatLog] = useState([]);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    pcRef.current = new RTCPeerConnection(iceServers);
-    socketRef.current = io(SIGNALING_SERVER_URL);
+    const socket = io(SIGNALING_SERVER_URL);
+    socketRef.current = socket;
 
-    socketRef.current.on("connect", () => {
-      console.log("Connected to signaling server");
+    socket.on("connect", () => {
+      console.log("✅ Connected to signaling server");
+      setConnected(true);
     });
 
-    socketRef.current.on("robot-ready", () => {
-      console.log("Robot is ready");
-      setRobotReady(true);
+    socket.on("disconnect", () => {
+      console.log("🔌 Disconnected from signaling server");
+      setConnected(false);
     });
 
-    socketRef.current.on("answer", async (data) => {
-      console.log("Answer received from robot");
-      const answer = new RTCSessionDescription(data);
-      await pcRef.current.setRemoteDescription(answer);
+    socket.on("answer", async (data) => {
+      console.log("📩 Received answer from robot");
+      const remoteDesc = new RTCSessionDescription(data);
+      await pcRef.current.setRemoteDescription(remoteDesc);
     });
 
-    pcRef.current.ontrack = (event) => {
-      console.log("Track received");
-      videoRef.current.srcObject = event.streams[0];
-    };
-
-    pcRef.current.ondatachannel = (event) => {
-      console.log("DataChannel received from robot");
-      const channel = event.channel;
-      dataChannelRef.current = channel;
-
-      channel.onmessage = (event) => {
-        console.log("Message from robot:", event.data);
-        setChatLog((prev) => [...prev, "Robot: " + event.data]);
-      };
-
-      channel.onopen = () => {
-        console.log("DataChannel opened");
-        setChatLog((prev) => [...prev, "[System] Chat is ready"]);
-      };
-
-      channel.onclose = () => {
-        console.log("DataChannel closed");
-        setChatLog((prev) => [...prev, "[System] Chat closed"]);
-      };
+    return () => {
+      socket.disconnect();
     };
   }, []);
 
+  const setupPeerConnection = () => {
+    const pc = new RTCPeerConnection(iceConfig);
+    pcRef.current = pc;
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("🔄 ICE state:", pc.iceConnectionState);
+    };
+
+    pc.ontrack = (event) => {
+      console.log("🎥 Track received");
+      videoRef.current.srcObject = event.streams[0];
+    };
+
+    pc.ondatachannel = (event) => {
+      console.log("🔗 DataChannel received from robot");
+      const channel = event.channel;
+      setupDataChannel(channel);
+    };
+  };
+
+  const setupDataChannel = (channel) => {
+    dataChannelRef.current = channel;
+
+    channel.onopen = () => {
+      console.log("🟢 DataChannel opened");
+      addToLog("[System] Chat is ready");
+    };
+
+    channel.onmessage = (event) => {
+      console.log("📥 Robot:", event.data);
+      addToLog("Robot: " + event.data);
+    };
+
+    channel.onclose = () => {
+      console.log("🔴 DataChannel closed");
+      addToLog("[System] Chat closed");
+    };
+  };
+
   const startStream = async () => {
-    if (!robotReady) {
-      alert("Robot not ready yet!");
-      return;
-    }
+    setupPeerConnection();
+
+    // Optional: create DataChannel from frontend
+    const dc = pcRef.current.createDataChannel("chat");
+    setupDataChannel(dc);
 
     pcRef.current.addTransceiver("video", { direction: "recvonly" });
-
-    // Create DataChannel from viewer side too (optional)
-    const dc = pcRef.current.createDataChannel("chat");
-    dataChannelRef.current = dc;
-
-    dc.onopen = () => {
-      console.log("DataChannel opened (from viewer)");
-      setChatLog((prev) => [...prev, "[System] Chat is ready"]);
-    };
-
-    dc.onmessage = (event) => {
-      console.log("Message from robot:", event.data);
-      setChatLog((prev) => [...prev, "Robot: " + event.data]);
-    };
 
     const offer = await pcRef.current.createOffer();
     await pcRef.current.setLocalDescription(offer);
 
     socketRef.current.emit("offer", {
       sdp: offer.sdp,
-      type: offer.type,
+      type: offer.type
     });
 
-    console.log("Offer sent to robot");
+    console.log("📤 Offer sent to robot");
   };
 
   const sendMessage = () => {
-    if (dataChannelRef.current && dataChannelRef.current.readyState === "open") {
+    if (dataChannelRef.current?.readyState === "open") {
       dataChannelRef.current.send(message);
-      setChatLog((prev) => [...prev, "You: " + message]);
+      addToLog("You: " + message);
       setMessage("");
     } else {
-      alert("DataChannel not open");
+      alert("⚠️ Chat not ready");
     }
+  };
+
+  const addToLog = (line) => {
+    setChatLog((prev) => [...prev, line]);
   };
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>Live Robot Feed + Command Chat</h2>
+      <h2> Live Robot Feed + Command Chat</h2>
+
       <video
         ref={videoRef}
         autoPlay
         playsInline
         controls
+        muted
         style={{ width: "640px", height: "360px", background: "#000" }}
       />
+
       <br />
-      <button onClick={startStream} disabled={!robotReady}>
+      <button onClick={startStream} disabled={!connected}>
         Start Camera + Chat
       </button>
 
@@ -136,12 +148,13 @@ function App() {
           style={{
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
+            alignItems: "flex-start",
             border: "1px solid #ccc",
             height: "150px",
             padding: "10px",
-            overflowY: "scroll",
+            overflowY: "auto",
             background: "#000000ff",
+            color: "#fff",
             marginBottom: "10px"
           }}
         >
@@ -149,11 +162,13 @@ function App() {
             <div key={idx}>{line}</div>
           ))}
         </div>
+
         <input
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter message"
+          placeholder="Type command..."
+          style={{ width: "300px", marginRight: "10px" }}
         />
         <button onClick={sendMessage}>Send</button>
       </div>
