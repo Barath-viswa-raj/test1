@@ -1,28 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-// ✅ Signaling Server URL
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
+
 
 const iceServers = {
   iceServers: [
     {
-      urls: "stun:stun.l.google.com:19302",
+      urls: ["stun:bn-turn1.xirsys.com"],
     },
     {
-      urls: "turn:openrelay.metered.ca:80", 
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: [
+        "turn:bn-turn1.xirsys.com:80?transport=udp",
+        "turn:bn-turn1.xirsys.com:3478?transport=udp",
+        "turn:bn-turn1.xirsys.com:80?transport=tcp",
+        "turn:bn-turn1.xirsys.com:3478?transport=tcp",
+        "turns:bn-turn1.xirsys.com:443?transport=tcp",
+        "turns:bn-turn1.xirsys.com:5349?transport=tcp",
+      ],
+      username:
+        "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+      credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004",
     },
   ],
 };
@@ -34,7 +32,7 @@ function App() {
   const [robotReady, setRobotReady] = useState(false);
 
   useEffect(() => {
-    // ✅ Initialize RTCPeerConnection with TURN/STUN config
+   
     pcRef.current = new RTCPeerConnection(iceServers);
     socketRef.current = io(SIGNALING_SERVER_URL);
 
