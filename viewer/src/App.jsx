@@ -60,6 +60,7 @@ function App() {
     };
 
     pc.ontrack = (event) => {
+      console.log("Received track from robot:",event.streams);
       console.log("🎥 Track received");
       videoRef.current.srcObject = event.streams[0];
     };
