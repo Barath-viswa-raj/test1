@@ -16,7 +16,7 @@ const iceConfig = {
        "turn:bn-turn1.xirsys.com:3478?transport=tcp",
        "turns:bn-turn1.xirsys.com:443?transport=tcp",
        "turns:bn-turn1.xirsys.com:5349?transport=tcp"
-   ]
+   ] 
 }]
 };
 
@@ -66,7 +66,7 @@ function App() {
     pc.ontrack = (event) => {
       console.log("Received track from robot:",event.streams);
       console.log("🎥 Track received");
-      videoRef.current.srcObject = event.streams[0];
+      videoRef.current.srcObject = event.streams[1];
     };
 
     pc.ondatachannel = (event) => {
