@@ -4,18 +4,20 @@ import io from "socket.io-client";
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
 const iceConfig = {
-  iceServers: [
-    {
-      urls: ["stun:stun.l.google.com:19302"]
-    },
-    {
-      username: "openai",
-      credential: "openai",
-      urls: [
-        "turn:171.76.103.17:3478"
-      ]
-    }
-  ]
+  iceServers: [{
+   urls: [ "stun:bn-turn1.xirsys.com" ]
+}, {
+   username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+   credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004",
+   urls: [
+       "turn:bn-turn1.xirsys.com:80?transport=udp",
+       "turn:bn-turn1.xirsys.com:3478?transport=udp",
+       "turn:bn-turn1.xirsys.com:80?transport=tcp",
+       "turn:bn-turn1.xirsys.com:3478?transport=tcp",
+       "turns:bn-turn1.xirsys.com:443?transport=tcp",
+       "turns:bn-turn1.xirsys.com:5349?transport=tcp"
+   ]
+}]
 };
 
 function App() {
