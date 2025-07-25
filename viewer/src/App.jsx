@@ -33,17 +33,17 @@ function App() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Connected to signaling server");
+      console.log("Connected to signaling server");
       setConnected(true);
     });
 
     socket.on("disconnect", () => {
-      console.log("🔌 Disconnected from signaling server");
+      console.log("Disconnected from signaling server");
       setConnected(false);
     });
 
     socket.on("answer", async (data) => {
-      console.log("📩 Received answer from robot");
+      console.log("Received answer from robot");
       const remoteDesc = new RTCSessionDescription(data);
       await pcRef.current.setRemoteDescription(remoteDesc);
     });
@@ -72,6 +72,14 @@ function App() {
       const channel = event.channel;
       setupDataChannel(channel);
     };
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log("📤 Sending ICE candidate to robot:", event.candidate);
+        socketRef.current.emit("candidate", {
+          candidate: event.candidate
+        });
+      }
+    }
   };
 
   const setupDataChannel = (channel) => {
