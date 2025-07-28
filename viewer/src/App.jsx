@@ -1,20 +1,24 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
 const iceConfig = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
     {
-      urls: "turn:192.168.1.2:3478",
+      urls: ["stun:stun.l.google.com:19302"]
+    },
+    {
       username: "test",
-      credential: "test123"
+      credential: "test123",
+      urls: [
+        "turn:192.168.1.2:3478"
+      ]
     }
   ]
 };
 
-const Viewer = () => {
+function App() {
   const videoRef = useRef(null);
   const pcRef = useRef(null);
   const socketRef = useRef(null);
@@ -34,45 +38,52 @@ const Viewer = () => {
     });
 
     socket.on("disconnect", () => {
-      console.warn("❌ Disconnected from signaling server");
+      console.log("🔌 Disconnected from signaling server");
       setConnected(false);
     });
 
-    socket.on("answer", async ({ sdp, type }) => {
-      console.log("📥 Answer received");
-      const pc = pcRef.current;
-      await pc.setRemoteDescription(new RTCSessionDescription({ sdp, type }));
-    });
-
-    socket.on("ice-candidate", async ({ candidate }) => {
-      try {
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log("✅ ICE candidate added");
-      } catch (err) {
-        console.error("🚫 Error adding ICE candidate:", err);
-      }
-    });
-
-    socket.on("robot-disconnected", () => {
-      console.warn("🤖 Robot disconnected");
+    socket.on("answer", async (data) => {
+      console.log("📩 Received answer from robot");
+      const remoteDesc = new RTCSessionDescription(data);
+      await pcRef.current.setRemoteDescription(remoteDesc);
     });
 
     return () => {
       socket.disconnect();
-      pcRef.current?.close();
     };
   }, []);
+
+  const setupPeerConnection = () => {
+    const pc = new RTCPeerConnection(iceConfig);
+    pcRef.current = pc;
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("🔄 ICE state:", pc.iceConnectionState);
+    };
+
+    pc.ontrack = (event) => {
+      console.log("Received track from robot:",event.streams);
+      console.log("🎥 Track received");
+      videoRef.current.srcObject = event.streams[0];
+    };
+
+    pc.ondatachannel = (event) => {
+      console.log("🔗 DataChannel received from robot");
+      const channel = event.channel;
+      setupDataChannel(channel);
+    };
+  };
 
   const setupDataChannel = (channel) => {
     dataChannelRef.current = channel;
 
     channel.onopen = () => {
       console.log("🟢 DataChannel opened");
-      addToLog("[System] Chat ready");
+      addToLog("[System] Chat is ready");
     };
 
     channel.onmessage = (event) => {
-      console.log("📩 Robot:", event.data);
+      console.log("📥 Robot:", event.data);
       addToLog("Robot: " + event.data);
     };
 
@@ -83,39 +94,16 @@ const Viewer = () => {
   };
 
   const startStream = async () => {
-    const pc = new RTCPeerConnection(iceConfig);
-    pcRef.current = pc;
+    setupPeerConnection();
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current.emit("ice-candidate", {
-          candidate: event.candidate
-        });
-      }
-    };
-
-    pc.ontrack = (event) => {
-      const stream = event.streams[0];
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play();
-        };
-      }
-    };
-
-    pc.ondatachannel = (event) => {
-      setupDataChannel(event.channel);
-    };
-
-    // Optional: Create chat channel from viewer
-    const dc = pc.createDataChannel("chat");
+    // Optional: create DataChannel from frontend
+    const dc = pcRef.current.createDataChannel("chat");
     setupDataChannel(dc);
 
-    pc.addTransceiver("video", { direction: "recvonly" });
+    pcRef.current.addTransceiver("video", { direction: "recvonly" });
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+    const offer = await pcRef.current.createOffer();
+    await pcRef.current.setLocalDescription(offer);
 
     socketRef.current.emit("offer", {
       sdp: offer.sdp,
@@ -141,31 +129,34 @@ const Viewer = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>🤖 Live Robot Feed + Command Chat</h2>
+      <h2> Live Robot Feed + Command Chat</h2>
 
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted
         controls
-        style={{ width: "80%", maxWidth: "720px", border: "2px solid black" }}
+        muted
+        style={{ width: "640px", height: "360px", background: "#000" }}
       />
 
       <br />
       <button onClick={startStream} disabled={!connected}>
-        ▶️ Start Camera + Chat
+        Start Camera + Chat
       </button>
 
       <div style={{ marginTop: "20px" }}>
-        <h3>💬 Command Chat</h3>
+        <h3>Command Chat</h3>
         <div
           style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
             border: "1px solid #ccc",
             height: "150px",
             padding: "10px",
             overflowY: "auto",
-            background: "#000",
+            background: "#000000ff",
             color: "#fff",
             marginBottom: "10px"
           }}
@@ -186,6 +177,6 @@ const Viewer = () => {
       </div>
     </div>
   );
-};
+}
 
-export default Viewer;
+export default App;
