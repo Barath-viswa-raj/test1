@@ -9,10 +9,10 @@ const iceConfig = {
       urls: ["stun:stun.l.google.com:19302"]
     },
     {
-      username: "openai",
-      credential: "openai",
+      username: "test",
+      credential: "test123",
       urls: [
-        "turn:171.76.103.17:3478"
+        "turn:192.168.1.2:3478"
       ]
     }
   ]
