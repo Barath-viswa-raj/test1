@@ -5,15 +5,11 @@ const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
 const iceConfig = {
   iceServers: [
-    {
-      urls: ["stun:stun.l.google.com:19302"]
-    },
+    { urls: ["stun:stun.l.google.com:19302"] },
     {
       username: "test",
       credential: "test123",
-      urls: [
-        "turn:192.168.1.2:3478"
-      ]
+      urls: ["turn:171.76.103.17:3478"]  
     }
   ]
 };
@@ -48,6 +44,12 @@ function App() {
       await pcRef.current.setRemoteDescription(remoteDesc);
     });
 
+    socket.on("candidate", async (data) => {
+      console.log("📩 Received ICE candidate from robot:", data);
+      const candidate = new RTCIceCandidate(data);
+      await pcRef.current.addIceCandidate(candidate).catch(err => console.error("Error adding candidate:", err));
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -61,17 +63,39 @@ function App() {
       console.log("🔄 ICE state:", pc.iceConnectionState);
     };
 
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log("📤 Sending ICE candidate to robot:", event.candidate);
+        socketRef.current.emit("candidate", {
+          component: event.candidate.component,
+          foundation: event.candidate.foundation,
+          priority: event.candidate.priority,
+          protocol: event.candidate.protocol,
+          ip: event.candidate.ip,
+          port: event.candidate.port,
+          type: event.candidate.type,
+          sdpMid: event.candidate.sdpMid,
+          sdpMLineIndex: event.candidate.sdpMLineIndex
+        });
+      }
+    };
+
     pc.ontrack = (event) => {
-      console.log("Received track from robot:",event.streams);
-      console.log("🎥 Track received");
-      videoRef.current.srcObject = event.streams[0];
+      console.log("🎥 Received track from robot:", event.streams[0]);
+      if (videoRef.current) {
+        videoRef.current.srcObject = event.streams[0];
+        videoRef.current.play().catch(err => console.error("Error playing video:", err));
+      }
     };
 
     pc.ondatachannel = (event) => {
       console.log("🔗 DataChannel received from robot");
-      const channel = event.channel;
-      setupDataChannel(channel);
+      setupDataChannel(event.channel);
     };
+
+    // Optional: Create DataChannel if initiating
+    const dc = pc.createDataChannel("chat");
+    setupDataChannel(dc);
   };
 
   const setupDataChannel = (channel) => {
@@ -80,6 +104,7 @@ function App() {
     channel.onopen = () => {
       console.log("🟢 DataChannel opened");
       addToLog("[System] Chat is ready");
+      channel.send("Hello from frontend!");  // Initial message
     };
 
     channel.onmessage = (event) => {
@@ -94,16 +119,13 @@ function App() {
   };
 
   const startStream = async () => {
-    setupPeerConnection();
+    if (!pcRef.current) setupPeerConnection();
 
-    // Optional: create DataChannel from frontend
-    const dc = pcRef.current.createDataChannel("chat");
-    setupDataChannel(dc);
+    const pc = pcRef.current;
+    pc.addTransceiver("video", { direction: "recvonly" });
 
-    pcRef.current.addTransceiver("video", { direction: "recvonly" });
-
-    const offer = await pcRef.current.createOffer();
-    await pcRef.current.setLocalDescription(offer);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
     socketRef.current.emit("offer", {
       sdp: offer.sdp,
@@ -129,8 +151,7 @@ function App() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2> Live Robot Feed + Command Chat</h2>
-
+      <h2>Live Robot Feed + Command Chat</h2>
       <video
         ref={videoRef}
         autoPlay
@@ -139,7 +160,7 @@ function App() {
         muted
         style={{ width: "640px", height: "360px", background: "#000" }}
       />
-
+      {/* Remove duplicate video element */}
       <br />
       <button onClick={startStream} disabled={!connected}>
         Start Camera + Chat
