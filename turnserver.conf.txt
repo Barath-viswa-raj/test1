@@ -1,8 +1,5 @@
-listening-port=3478
-fingerprint
-lt-cred-mech
+listening-ip=0.0.0.0
+external-ip=106.197.115.229
 user=test:test123
-realm=test.com
-no-loopback-peers
-no-multicast-peers
-verbose
+listening-port=3478
+relay-ip=106.197.115.229

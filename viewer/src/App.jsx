@@ -13,7 +13,7 @@ async function fetchIceServers() {
     return iceServers;
   } catch (error) {
     console.error("Failed to fetch TURN credentials:", error);
-    return [{ urls: ["stun:stun.l.google.com:19302"] }]; // Fallback
+    return [{ urls: ["stun:stun.l.google.com:19302"] }];
   }
 }
 
@@ -26,25 +26,26 @@ function App() {
   const [message, setMessage] = useState("");
   const [chatLog, setChatLog] = useState([]);
   const [connected, setConnected] = useState(false);
+  const [ setRobotReady] = useState(false);
 
   useEffect(() => {
     const setupWebRTC = async () => {
-      const socket = io(SIGNALING_SERVER_URL, { reconnection: true });
+      const socket = io(SIGNALING_SERVER_URL, { reconnection: true, reconnectionAttempts: 5 });
       socketRef.current = socket;
 
       socket.on("connect", () => {
         console.log("✅ Connected to signaling server");
         setConnected(true);
-        initiateCall(); // Start call on connect
       });
 
-      socket.on("disconnect", () => {
-        console.log("🔌 Disconnected from signaling server");
+      socket.on("disconnect", (reason) => {
+        console.log("🔌 Disconnected from signaling server, reason:", reason);
         setConnected(false);
+        setRobotReady(false);
       });
 
       socket.on("answer", async (data) => {
-        console.log("📩 Received answer from robot:", data);
+        console.log("📩 Received answer from robot");
         const remoteDesc = new RTCSessionDescription(data);
         await pcRef.current.setRemoteDescription(remoteDesc);
       });
@@ -57,7 +58,13 @@ function App() {
         );
       });
 
+      socket.on("robot-registered", () => {
+        console.log("🤖 Robot registered with signaling server");
+        setRobotReady(true);
+      });
+
       const iceServers = await fetchIceServers();
+      console.log("Using ICE servers:", iceServers);
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
@@ -65,8 +72,12 @@ function App() {
         console.log("🔄 ICE state:", pc.iceConnectionState);
         if (pc.iceConnectionState === "failed") {
           console.error("ICE connection failed, attempting restart...");
-          pc.restartIce(); // Attempt ICE restart
+          pc.restartIce();
         }
+      };
+
+      pc.onicegatheringstatechange = () => {
+        console.log("🔍 ICE gathering state:", pc.iceGatheringState);
       };
 
       pc.onicecandidate = (event) => {
@@ -83,6 +94,8 @@ function App() {
             sdpMid: event.candidate.sdpMid,
             sdpMLineIndex: event.candidate.sdpMLineIndex,
           });
+        } else {
+          console.log("✅ ICE candidate gathering complete");
         }
       };
 
@@ -90,9 +103,7 @@ function App() {
         console.log("🎥 Received track from robot:", event.streams[0]);
         if (videoRef.current) {
           videoRef.current.srcObject = event.streams[0];
-          videoRef.current
-            .play()
-            .catch((err) => console.error("Error playing video:", err));
+          videoRef.current.play().catch((err) => console.error("Error playing video:", err));
         }
       };
 
@@ -103,20 +114,6 @@ function App() {
 
       const dc = pc.createDataChannel("chat");
       setupDataChannel(dc);
-
-      async function initiateCall() {
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socketRef.current.emit("offer", {
-            sdp: offer.sdp,
-            type: offer.type,
-          });
-          console.log("📤 Offer sent to robot");
-        } catch (error) {
-          console.error("Error initiating call:", error);
-        }
-      }
 
       return () => {
         pc.close();
@@ -131,20 +128,41 @@ function App() {
     dataChannelRef.current = channel;
 
     channel.onopen = () => {
-      console.log("🟢 DataChannel opened");
+      console.log("DataChannel opened");
       addToLog("[System] Chat is ready");
-      channel.send("Hello from frontend!"); // Initial message
+      channel.send("Hello from frontend!");
     };
 
     channel.onmessage = (event) => {
-      console.log("📥 Robot:", event.data);
+      console.log("Robot:", event.data);
       addToLog("Robot: " + event.data);
     };
 
     channel.onclose = () => {
-      console.log("🔴 DataChannel closed");
+      console.log("DataChannel closed");
       addToLog("[System] Chat closed");
     };
+  };
+
+  const startStream = async () => {
+    if (!pcRef.current ) {
+      alert("Robot is not ready or peer connection not initialized. Please wait.");
+      return;
+    }
+
+    const pc = pcRef.current;
+    try {
+      pc.addTransceiver("video", { direction: "recvonly" });
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socketRef.current.emit("offer", {
+        sdp: offer.sdp,
+        type: offer.type,
+      });
+      console.log("Offer sent to robot");
+    } catch (error) {
+      console.error("Error starting stream:", error);
+    }
   };
 
   const sendMessage = () => {
@@ -153,7 +171,7 @@ function App() {
       addToLog("You: " + message);
       setMessage("");
     } else {
-      alert("⚠️ Chat not ready");
+      alert("Chat not ready");
     }
   };
 
@@ -173,8 +191,9 @@ function App() {
         style={{ width: "640px", height: "360px", background: "#000" }}
       />
       <br />
-      {/* Removed onClick={startStream} since it's handled in useEffect */}
-      <button disabled={!connected}>Start Camera + Chat (Automatic)</button>
+      <button onClick={startStream} disabled={!connected}>
+        Start Camera + Chat
+      </button>
 
       <div style={{ marginTop: "20px" }}>
         <h3>Command Chat</h3>
