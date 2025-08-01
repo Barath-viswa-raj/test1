@@ -4,17 +4,18 @@ import io from "socket.io-client";
 const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
 
 async function fetchIceServers() {
-  try {
-    const response = await fetch(
-      "https://applicationtestwebrtc.metered.live/api/v1/turn/credentials?apiKey=026cee6cbdb1ca82089a5f6658aba9787578"
-    );
-    const iceServers = await response.json();
-    console.log("Fetched ICE servers:", iceServers);
-    return iceServers;
-  } catch (error) {
-    console.error("Failed to fetch TURN credentials:", error);
-    return [{ urls: ["stun:stun.l.google.com:19302"] }];
-  }
+
+  // try {
+  //   const response = await fetch(
+  //     "https://applicationtestwebrtc.metered.live/api/v1/turn/credentials?apiKey=026cee6cbdb1ca82089a5f6658aba9787578"
+  //   );
+  //   const iceServers = await response.json();
+  //   console.log("Fetched ICE servers:", iceServers);
+  //   return iceServers;
+  // } catch (error) {
+  //   console.error("Failed to fetch TURN credentials:", error);
+       return [{ urls: ["stun:stun.l.google.com:19302"] }];
+  // }
 }
 
 function App() {
@@ -99,8 +100,8 @@ function App() {
         }
       };
 
-      // const dc = pc.createDataChannel("chat");
-      // setupDataChannel(dc);
+      const dc = pc.createDataChannel("chat");
+      setupDataChannel(dc);
       pc.ondatachannel = (event) => {
         console.log("🔗 DataChannel received from robot");
         setupDataChannel(event.channel);
