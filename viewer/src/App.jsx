@@ -99,12 +99,12 @@ function App() {
         }
       };
 
-      const dc = pc.createDataChannel("chat");
-      setupDataChannel(dc);
-      // pc.ondatachannel = (event) => {
-      //   console.log("🔗 DataChannel received from robot");
-      //   setupDataChannel(event.channel);
-      // };
+      // const dc = pc.createDataChannel("chat");
+      // setupDataChannel(dc);
+      pc.ondatachannel = (event) => {
+        console.log("🔗 DataChannel received from robot");
+        setupDataChannel(event.channel);
+      };
 
       pc.ontrack = (event) => {
         console.log("🎥 Received track from robot:", event.streams[0]);
