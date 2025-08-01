@@ -14,7 +14,19 @@ async function fetchIceServers() {
   //   return iceServers;
   // } catch (error) {
   //   console.error("Failed to fetch TURN credentials:", error);
-       return [{ urls: ["stun:stun.l.google.com:19302"] }];
+       return [{ urls: ["stun:stun.l.google.com:19302"]},
+        {
+          
+        urls: "turn:global.relay.metered.ca:80",
+        username: "f42ebdd62391966c28dc7e37",
+        credential: "VVULqJQU+41ZKGZX",
+      
+
+
+        }
+        
+
+  ];
   // }
 }
 
@@ -71,7 +83,7 @@ function App() {
 
       pc.oniceconnectionstatechange = () => {
         console.log("🔄 ICE state:", pc.iceConnectionState);
-        if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
+        if (pc.iceConnectionState === "disconnected") {
           console.error("ICE connection failed, attempting restart...");
           pc.restartIce();
         }
