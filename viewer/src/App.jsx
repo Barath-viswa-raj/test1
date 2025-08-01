@@ -71,7 +71,7 @@ function App() {
 
       pc.oniceconnectionstatechange = () => {
         console.log("🔄 ICE state:", pc.iceConnectionState);
-        if (pc.iceConnectionState === "failed") {
+        if (pc.iceConnectionState === "disconnected" || pc.iceConnectionState === "failed") {
           console.error("ICE connection failed, attempting restart...");
           pc.restartIce();
         }
