@@ -63,7 +63,7 @@ function App() {
 
       socket.on("candidate", async (data) => {
         console.log("📩 Received ICE candidate from robot:", data);
-        socket.emit("robot-registered").emit("candidate", data);
+        socket.emit("candidate", data);
         const candidate = new RTCIceCandidate(data);
         await pcRef.current.addIceCandidate(candidate).catch((err) =>
           console.error("Error adding candidate:", err)
@@ -125,7 +125,10 @@ function App() {
         console.log("🎥 Received track from robot:", event.streams[0]);
         if (videoRef.current) {
           videoRef.current.srcObject = event.streams[0];
-          videoRef.current.play().catch((err) => console.error("Error playing video:", err));
+          console.log("Video stream set to video element",videoRef.current.readyState);
+
+
+          videoRef.current.play().then(() => {console.log("video playback started");}).catch((err) => console.error("Error playing video:", err));
         }
       };
 
@@ -204,7 +207,6 @@ function App() {
         ref={videoRef}
         autoPlay
         playsInline
-        controls
         muted
         style={{ width: "640px", height: "360px", background: "#000" }}
       />
