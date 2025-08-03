@@ -20,12 +20,7 @@ async function fetchIceServers() {
         urls: "turn:global.relay.metered.ca:80",
         username: "f42ebdd62391966c28dc7e37",
         credential: "VVULqJQU+41ZKGZX",
-      
-
-
-        }
-        
-
+        } 
   ];
   // }
 }
@@ -47,24 +42,25 @@ function App() {
       socketRef.current = socket;
 
       socket.on("connect", () => {
-        console.log("✅ Connected to signaling server");
+        console.log("Connected to signaling server");
         setConnected(true);
       });
 
       socket.on("disconnect", (reason) => {
-        console.log("🔌 Disconnected from signaling server, reason:", reason);
+        console.log("Disconnected from signaling server, reason:", reason);
         setConnected(false);
         setRobotReady(false);
       });
 
       socket.on("answer", async (data) => {
-        console.log("📩 Received answer from robot");
+        console.log("Received answer from robot");
         const remoteDesc = new RTCSessionDescription(data);
         await pcRef.current.setRemoteDescription(remoteDesc);
       });
 
       socket.on("candidate", async (data) => {
         console.log("📩 Received ICE candidate from robot:", data);
+        socket.emit("robot-registered").emit("candidate", data);
         const candidate = new RTCIceCandidate(data);
         await pcRef.current.addIceCandidate(candidate).catch((err) =>
           console.error("Error adding candidate:", err)
@@ -84,7 +80,7 @@ function App() {
       pc.oniceconnectionstatechange = () => {
         console.log("🔄 ICE state:", pc.iceConnectionState);
         if (pc.iceConnectionState === "disconnected") {
-          console.error("ICE connection failed, attempting restart...");
+          console.error("ICE connection failed, attempting restart...",);
           pc.restartIce();
         }
       };
@@ -97,18 +93,19 @@ function App() {
         if (event.candidate) {
           console.log("📤 Sending ICE candidate to robot:", event.candidate);
           socketRef.current.emit("candidate", {
-            component: event.candidate.component,
-            foundation: event.candidate.foundation,
-            priority: event.candidate.priority,
-            protocol: event.candidate.protocol,
-            ip: event.candidate.ip,
-            port: event.candidate.port,
-            type: event.candidate.type,
-            sdpMid: event.candidate.sdpMid,
-            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            candidate: event.candidate,
+            // component: event.candidate.component,
+            // foundation: event.candidate.foundation,
+            // priority: event.candidate.priority,
+            // protocol: event.candidate.protocol,
+            // ip: event.candidate.ip,
+            // port: event.candidate.port,
+            // type: event.candidate.type,
+            // sdpMid: event.candidate.sdpMid,
+            // sdpMLineIndex: event.candidate.sdpMLineIndex,
           });
         } else {
-          console.log("✅ ICE candidate gathering complete");
+          console.log(" ICE candidate gathering complete");
         }
       };
 
