@@ -125,13 +125,14 @@ function App() {
       pc.ontrack = (event) => {
         console.log("🎥 Received track from robot:", event.streams[0]);
         if (videoRef.current) {
+          console.log("Setting video stream to video element");
           videoRef.current.srcObject = event.streams[0];
            event.streams[0].getVideoTracks().forEach((track) => {
-            console.log("🎥 Track label:", track.label);
-            console.log("🎥 Track enabled:", track.enabled);
-            console.log("🎥 Track readyState:", track.readyState);
-            console.log("🎥 Track kind:", track.kind);
-            console.log("🎥 Track settings:", track.getSettings());
+            console.log(" Track label:", track.label);
+            console.log(" Track enabled:", track.enabled);
+            console.log(" Track readyState:", track.readyState);
+            console.log("Track kind:", track.kind);
+            console.log("Track settings:", track.getSettings());
           });
           console.log("Video stream set to video element",videoRef.current.readyState);
           videoRef.current.play().then(() => {console.log("video playback started");}).catch((err) => console.error("Error playing video:", err));
@@ -150,25 +151,25 @@ function App() {
 
     setupWebRTC();
 
-    // const pixelCheckInterval = setInterval(() => {
-    //   if (videoRef.current && canvasRef.current) {
-    //     const video = videoRef.current;
-    //     const canvas = canvasRef.current;
-    //     const ctx = canvas.getContext("2d");
+    const pixelCheckInterval = setInterval(() => {
+      if (videoRef.current && canvasRef.current) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
 
-    //     if (video.videoWidth > 0 && video.videoHeight > 0) {
-    //       canvas.width = video.videoWidth;
-    //       canvas.height = video.videoHeight;
-    //       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    //       const pixel = ctx.getImageData(0, 0, 1, 1).data;
-    //       console.log("Top-left pixel RGBA:", pixel);
-    //     } else {
-    //       console.log("No video frame rendered yet.");
-    //     }
-    //   }
-    // }, 2000);
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const pixel = ctx.getImageData(0, 0, 1, 1).data;
+          console.log("Top-left pixel RGBA:", pixel);
+        } else {
+          console.log("No video frame rendered yet.");
+        }
+      }
+    }, 2000);
 
-    // return () => clearInterval(pixelCheckInterval);
+    return () => clearInterval(pixelCheckInterval);
   }, []);
 
 
@@ -236,7 +237,6 @@ function App() {
         ref={videoRef}
         autoPlay
         playsInline
-        muted
         style={{ width: "640px", height: "360px", background: "#000" }}
       />
       <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
