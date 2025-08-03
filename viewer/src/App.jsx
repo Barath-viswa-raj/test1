@@ -150,25 +150,25 @@ function App() {
 
     setupWebRTC();
 
-    const pixelCheckInterval = setInterval(() => {
-      if (videoRef.current && canvasRef.current) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
+    // const pixelCheckInterval = setInterval(() => {
+    //   if (videoRef.current && canvasRef.current) {
+    //     const video = videoRef.current;
+    //     const canvas = canvasRef.current;
+    //     const ctx = canvas.getContext("2d");
 
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const pixel = ctx.getImageData(0, 0, 1, 1).data;
-          console.log("Top-left pixel RGBA:", pixel);
-        } else {
-          console.log("No video frame rendered yet.");
-        }
-      }
-    }, 2000);
+    //     if (video.videoWidth > 0 && video.videoHeight > 0) {
+    //       canvas.width = video.videoWidth;
+    //       canvas.height = video.videoHeight;
+    //       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    //       const pixel = ctx.getImageData(0, 0, 1, 1).data;
+    //       console.log("Top-left pixel RGBA:", pixel);
+    //     } else {
+    //       console.log("No video frame rendered yet.");
+    //     }
+    //   }
+    // }, 2000);
 
-    return () => clearInterval(pixelCheckInterval);
+    // return () => clearInterval(pixelCheckInterval);
   }, []);
 
 
