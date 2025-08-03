@@ -121,13 +121,13 @@ function App() {
         setupDataChannel(event.channel);
       };
 
-      // // pc.ontrack = (event) => {
-      // //   console.log("🎥 Received track from robot:", event.streams[0]);
-      // //   if (videoRef.current) {
-      // //     videoRef.current.srcObject = event.streams[0];
-      // //     videoRef.current.play().catch((err) => console.error("Error playing video:", err));
-      // //   }
-      // };
+      pc.ontrack = (event) => {
+        console.log("🎥 Received track from robot:", event.streams[0]);
+        if (videoRef.current) {
+          videoRef.current.srcObject = event.streams[0];
+          videoRef.current.play().catch((err) => console.error("Error playing video:", err));
+        }
+      };
 
       
 
