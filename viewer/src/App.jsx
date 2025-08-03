@@ -17,7 +17,10 @@ async function fetchIceServers() {
        return [{ urls: ["stun:stun.l.google.com:19302"]},
         {
           
-        urls: "turn:global.relay.metered.ca:80",
+        // urls: "turn:global.relay.metered.ca:80",
+        // username: "f42ebdd62391966c28dc7e37",
+        // credential: "VVULqJQU+41ZKGZX",
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
         username: "f42ebdd62391966c28dc7e37",
         credential: "VVULqJQU+41ZKGZX",
         } 
@@ -74,7 +77,9 @@ function App() {
 
       const iceServers = await fetchIceServers();
       console.log("Using ICE servers:", iceServers);
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = new RTCPeerConnection({ iceServers,
+        iceTransportPolicy: "relay"
+       });
       pcRef.current = pc;
 
       pc.oniceconnectionstatechange = () => {
