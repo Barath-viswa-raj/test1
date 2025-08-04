@@ -1,8 +1,14 @@
 const { Server } = require("socket.io");
 
-const io = new Server(9010, {
+const PORT = process.env.PORT || 9010;
+
+const io = new Server(PORT, {
   cors: {
-    origin: "*",
+    origin: [
+      "https://your-app-name.vercel.app" 
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
@@ -14,7 +20,7 @@ io.on("connection", (socket) => {
   socket.on("register-robot", () => {
     console.log("Robot registered:", socket.id);
     robotSocket = socket;
-    io.emit("robot-ready");
+    socket.broadcast.emit("robot-ready");
   });
 
   socket.on("offer", (data) => {
@@ -29,12 +35,20 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("answer", data);
   });
 
+  socket.on("candidate", (data) => {
+    console.log("ICE candidate received, forwarding...");
+    socket.broadcast.emit("candidate", data);
+  });
+
   socket.on("disconnect", () => {
     if (socket === robotSocket) {
-      console.log(" Robot disconnected");
+      console.log("Robot disconnected");
       robotSocket = null;
+      io.emit("robot-disconnected");
+    } else {
+      console.log("Frontend client disconnected:", socket.id);
     }
   });
 });
 
-console.log("Signaling server running on port 9010"); 
+console.log(`Signaling server running on port ${PORT}`); 

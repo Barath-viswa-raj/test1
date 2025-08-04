@@ -1,53 +1,196 @@
 import socketio
 import asyncio
-import base64
 import cv2
-from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer
-
-SIGNALING_SERVER_URL = "https://application-8mai.onrender.com/"
+import numpy as np
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, RTCConfiguration, RTCIceServer
+from aiortc.contrib.signaling import BYE
+from av import VideoFrame
+import threading
+import time
+from config import SIGNALING_SERVER_URL, VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS, CAMERA_INDEX
 
 sio = socketio.AsyncClient()
-pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=[
-    RTCIceServer(urls=["stun:bn-turn1.xirsys.com"])
-]))
+pc = None
+dc = None
+video_track = None
+
+class WebcamVideoTrack(VideoStreamTrack):
+    def __init__(self):
+        super().__init__()
+        self.cap = cv2.VideoCapture(CAMERA_INDEX)  
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, VIDEO_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, VIDEO_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
+        
+        if not self.cap.isOpened():
+            raise RuntimeError("Could not open webcam")
+        
+        print(f"[Backend] Webcam initialized: {VIDEO_WIDTH}x{VIDEO_HEIGHT} @ {VIDEO_FPS}fps")
+    
+    async def recv(self):
+        """
+        Capture a frame from the webcam and return it as a VideoFrame.
+        """
+        pts, time_base = await self.next_timestamp()
+        
+        ret, frame = self.cap.read()
+        if not ret:
+            print("[Backend] Failed to capture frame")
+            return None
+        
+        # Convert BGR to RGB (OpenCV uses BGR, WebRTC expects RGB)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Create VideoFrame from numpy array
+        av_frame = VideoFrame.from_ndarray(frame, format="rgb24")
+        av_frame.pts = pts
+        av_frame.time_base = time_base
+        
+        return av_frame
+    
+    def stop(self):
+        """
+        Release the webcam when done.
+        """
+        if self.cap:
+            self.cap.release()
+            print("[Backend] Webcam released")
 
 @sio.event
 async def connect():
-    print("🔌 Connected to signaling server.")
+    print("[Backend] Connected to signaling server")
     await sio.emit("register-robot")
-    print("Waiting for 'take_snapshot' events...")
+    await sio.emit("robot-registered")
+
+@sio.event
+async def offer(data):
+    global pc, dc, video_track
+    print("[Backend] Offer received:", data)
+
+    # Configure ICE servers with STUN and TURN
+    ice_servers = [
+        RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+        RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+        RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+        RTCIceServer(
+            urls=[
+                "turn:bn-turn1.xirsys.com:80?transport=udp",
+                "turn:bn-turn1.xirsys.com:80?transport=tcp",
+                "turns:bn-turn1.xirsys.com:443?transport=tcp"
+            ],
+            username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+            credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        )
+    ]
+
+    # Create RTCConfiguration with proper ice servers
+    configuration = RTCConfiguration(iceServers=ice_servers)
+    pc = RTCPeerConnection(configuration)
+
+    # Initialize webcam video track
+    try:
+        video_track = WebcamVideoTrack()
+        pc.addTrack(video_track)
+        print("[Backend] Video track added to peer connection")
+    except Exception as e:
+        print(f"[Backend] Failed to initialize webcam: {e}")
+        # Continue without video track - connection can still be established
+        video_track = None
+
+    @pc.on("datachannel")
+    def on_datachannel(channel):
+        global dc
+        dc = channel
+        print("[Backend] Data channel opened:", channel.label)
+
+        @channel.on("message")
+        def on_message(message):
+            print(f"[Backend] Received message from frontend: {message}")
+            
+            if message == "start-video":
+                print("[Backend] Video streaming requested")
+                response = "Video streaming started"
+            elif message == "stop-video":
+                print("[Backend] Video streaming stop requested")
+                response = "Video streaming stopped"
+            else:
+                response = f"Ack: {message}"
+            
+            print(f"[Backend] Sending response: {response}")
+            channel.send(response)
+
+    @pc.on("icecandidate")
+    async def on_icecandidate(candidate):
+        if candidate:
+            print("[Backend] Sending ICE candidate")
+            await sio.emit("candidate", {
+                "candidate": candidate.candidate,
+                "sdpMid": candidate.sdpMid,
+                "sdpMLineIndex": candidate.sdpMLineIndex
+            })
+
+    @pc.on("connectionstatechange")
+    async def on_connectionstatechange():
+        print(f"[Backend] Connection state changed: {pc.connectionState}")
+        if pc.connectionState == "failed":
+            print("[Backend] Connection failed, cleaning up...")
+            await cleanup()
+
+    await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["type"]))
+
+    answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+
+    await sio.emit("answer", {
+        "sdp": pc.localDescription.sdp,
+        "type": pc.localDescription.type
+    })
+    print("[Backend] Sent answer")
+
+@sio.event
+async def candidate(data):
+    global pc
+    print("[Backend] ICE candidate received:", data)
+    if pc:
+        try:
+            candidate = RTCIceCandidate(
+                candidate=data["candidate"],
+                sdpMid=data["sdpMid"],
+                sdpMLineIndex=data["sdpMLineIndex"]
+            )
+            await pc.addIceCandidate(candidate)
+            print("[Backend] ICE candidate added successfully")
+        except Exception as e:
+            print(f"[Backend] Failed to add ICE candidate: {e}")
 
 @sio.event
 async def disconnect():
-    print("🔌 Disconnected from signaling server.")
+    print("[Backend] Disconnected from signaling server")
+    await cleanup()
 
-@sio.event
-async def take_snapshot():
-    print("📸 Snapshot request received.")
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("❌ Failed to open camera.")
-        return
+async def cleanup():
+    global pc, video_track
+    if video_track:
+        video_track.stop()
+        video_track = None
+    if pc:
+        await pc.close()
+        pc = None
+    print("[Backend] Cleanup completed")
 
-    ret, frame = cap.read()
-    cap.release()
-
-    if not ret:
-        print("❌ Failed to read frame.")
-        return
-
-    _, jpeg = cv2.imencode('.jpg', frame)
-    b64_img = base64.b64encode(jpeg.tobytes()).decode("utf-8")
-
-    await sio.emit("snapshot", {"image": b64_img})
-    print("📤 Snapshot sent to frontend.")
 
 async def main():
-    await sio.connect(SIGNALING_SERVER_URL)
-    await sio.wait()
+    try:
+        print("[Backend] Starting robot application...")
+        await sio.connect(SIGNALING_SERVER_URL)
+        print("[Backend] Connected to signaling server, waiting for connections...")
+        await sio.wait()
+    except KeyboardInterrupt:
+        print("[Backend] Shutting down...")
+        await cleanup()
+    except Exception as e:
+        print(f"[Backend] Error: {e}")
+        await cleanup()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("🛑 Exiting...")
+    asyncio.run(main())
