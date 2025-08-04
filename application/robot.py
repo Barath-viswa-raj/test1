@@ -2,7 +2,6 @@ import socketio
 import asyncio
 import base64
 import cv2
-import numpy as np
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer
 
 SIGNALING_SERVER_URL = "https://application-8mai.onrender.com/"
@@ -16,6 +15,7 @@ pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=[
 async def connect():
     print("🔌 Connected to signaling server.")
     await sio.emit("register-robot")
+    print("Waiting for 'take_snapshot' events...")
 
 @sio.event
 async def disconnect():
@@ -24,7 +24,6 @@ async def disconnect():
 @sio.event
 async def take_snapshot():
     print("📸 Snapshot request received.")
-    # Open the camera
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("❌ Failed to open camera.")
@@ -37,14 +36,9 @@ async def take_snapshot():
         print("❌ Failed to read frame.")
         return
 
-    # Encode to JPEG
     _, jpeg = cv2.imencode('.jpg', frame)
-    jpg_bytes = jpeg.tobytes()
+    b64_img = base64.b64encode(jpeg.tobytes()).decode("utf-8")
 
-    # Convert to base64
-    b64_img = base64.b64encode(jpg_bytes).decode("utf-8")
-
-    # Emit snapshot to frontend
     await sio.emit("snapshot", {"image": b64_img})
     print("📤 Snapshot sent to frontend.")
 
