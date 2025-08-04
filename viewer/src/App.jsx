@@ -1,282 +1,82 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import io from "socket.io-client";
 
-const SIGNALING_SERVER_URL = "https://application-8mai.onrender.com";
-
-async function fetchIceServers() {
-
-  // try {
-  //   const response = await fetch(
-  //     "https://applicationtestwebrtc.metered.live/api/v1/turn/credentials?apiKey=026cee6cbdb1ca82089a5f6658aba9787578"
-  //   );
-  //   const iceServers = await response.json();
-  //   console.log("Fetched ICE servers:", iceServers);
-  //   return iceServers;
-  // } catch (error) {
-  //   console.error("Failed to fetch TURN credentials:", error);
-       return [{ urls: ["stun:bn-turn1.xirsys.com"]},
-        {
-          
-        // urls: "turn:global.relay.metered.ca:80",
-        // username: "f42ebdd62391966c28dc7e37",
-        // credential: "VVULqJQU+41ZKGZX",
-        urls: [ "turn:bn-turn1.xirsys.com:80?transport=udp",
-                "turn:bn-turn1.xirsys.com:80?transport=tcp",
-            ],
-        username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-        credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004",
-        } 
-  ];
-  // }
-}
+const SIGNAL_URL = "https://application-8mai.onrender.com"; // update to real URL when deployed
 
 function App() {
-  const videoRef = useRef(null);
-  const pcRef = useRef(null);
-  const socketRef = useRef(null);
-  const dataChannelRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  const [message, setMessage] = useState("");
-  const [chatLog, setChatLog] = useState([]);
-  const [connected, setConnected] = useState(false);
-  const [ setRobotReady] = useState(false);
+  const videoRef = useRef();
+  const pcRef = useRef();
+  const socketRef = useRef();
 
   useEffect(() => {
-    const setupWebRTC = async () => {
-      const socket = io(SIGNALING_SERVER_URL, { reconnection: true, reconnectionAttempts: 5 });
-      socketRef.current = socket;
+    const init = async () => {
+      const iceServers = [
+        { urls: ["stun:bn-turn1.xirsys.com"] },
+        {
+          urls: [
+            "turn:bn-turn1.xirsys.com:80?transport=udp",
+            "turn:bn-turn1.xirsys.com:80?transport=tcp",
+            "turns:bn-turn1.xirsys.com:443?transport=tcp"
+          ],
+          username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+          credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        }
+      ];
 
-      socket.on("connect", () => {
-        console.log("Connected to signaling server");
-        setConnected(true);
+      socketRef.current = io(SIGNAL_URL);
+      socketRef.current.on("connect", () => console.log("Connected to signaling"));
+
+      socketRef.current.on("answer", async (data) => {
+        console.log("Answer received");
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data));
       });
 
-      socket.on("disconnect", (reason) => {
-        console.log("Disconnected from signaling server, reason:", reason);
-        setConnected(false);
-        setRobotReady(false);
+      socketRef.current.on("candidate", async (data) => {
+        console.log("Candidate from backend:", data);
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(data));
       });
 
-      socket.on("answer", async (data) => {
-        console.log("Received answer from robot");
-        const remoteDesc = new RTCSessionDescription(data);
-        await pcRef.current.setRemoteDescription(remoteDesc);
-      });
-
-      socket.on("candidate", async (data) => {
-        console.log("📩 Received ICE candidate from robot:", data);
-        socket.emit("candidate", data);
-        const candidate = new RTCIceCandidate(data);
-        await pcRef.current.addIceCandidate(candidate).catch((err) =>
-          console.error("Error adding candidate:", err)
-        );
-      });
-
-      socket.on("robot-registered", () => {
-        console.log("🤖 Robot registered with signaling server");
-        setRobotReady(true);
-      });
-
-      const iceServers = await fetchIceServers();
-      console.log("Using ICE servers:", iceServers);
-      const pc = new RTCPeerConnection({ iceServers,
-        iceTransportPolicy: "relay"
-       });
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
-      pc.oniceconnectionstatechange = () => {
-        console.log("🔄 ICE state:", pc.iceConnectionState);
-        if (pc.iceConnectionState === "disconnected") {
-          console.error("ICE connection failed, attempting restart...",);
-          pc.restartIce();
-        }
-      };
-
-      pc.onicegatheringstatechange = () => {
-        console.log("🔍 ICE gathering state:", pc.iceGatheringState);
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log("📤 Sending ICE candidate to robot:", event.candidate);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
           socketRef.current.emit("candidate", {
-            candidate: event.candidate,
-            // component: event.candidate.component,
-            // foundation: event.candidate.foundation,
-            // priority: event.candidate.priority,
-            // protocol: event.candidate.protocol,
-            // ip: event.candidate.ip,
-            // port: event.candidate.port,
-            // type: event.candidate.type,
-            // sdpMid: event.candidate.sdpMid,
-            // sdpMLineIndex: event.candidate.sdpMLineIndex,
+            candidate: e.candidate.candidate,
+            sdpMid: e.candidate.sdpMid,
+            sdpMLineIndex: e.candidate.sdpMLineIndex
           });
-        } else {
-          console.log(" ICE candidate gathering complete");
         }
-      };
-
-      const dc = pc.createDataChannel("chat");
-      setupDataChannel(dc);
-      pc.ondatachannel = (event) => {
-        console.log("🔗 DataChannel received from robot");
-        setupDataChannel(event.channel);
       };
 
       pc.ontrack = (event) => {
-        console.log("🎥 Received track from robot:", event.streams[0]);
-        if (videoRef.current) {
-          console.log("Setting video stream to video element");
-          videoRef.current.srcObject = event.streams[0];
-           event.streams[0].getVideoTracks().forEach((track) => {
-            console.log(" Track label:", track.label);
-            console.log(" Track enabled:", track.enabled);
-            console.log(" Track readyState:", track.readyState);
-            console.log("Track kind:", track.kind);
-            console.log("Track settings:", track.getSettings());
-          });
-          console.log("Video stream set to video element",videoRef.current.readyState);
-          videoRef.current.play().then(() => {console.log("video playback started");}).catch((err) => console.error("Error playing video:", err));
-        }
-      };
-
-      
-
-      
-
-      return () => {
-        pc.close();
-        socket.disconnect();
+        videoRef.current.srcObject = event.streams[0];
       };
     };
-
-    setupWebRTC();
-
-    const pixelCheckInterval = setInterval(() => {
-      if (videoRef.current && canvasRef.current) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const pixel = ctx.getImageData(0, 0, 1, 1).data;
-          console.log("Top-left pixel RGBA:", pixel);
-        } else {
-          console.log("No video frame rendered yet.");
-        }
-      }
-    }, 2000);
-
-    return () => clearInterval(pixelCheckInterval);
+    init();
+    return () => {
+      pcRef.current?.close();
+      socketRef.current?.disconnect();
+    };
   }, []);
 
-
-  
-
-  const setupDataChannel = (channel) => {
-    dataChannelRef.current = channel;
-
-    channel.onopen = () => {
-      console.log("DataChannel opened");
-      addToLog("[System] Chat is ready");
-      channel.send("Hello from frontend!");
-    };
-
-    channel.onmessage = (event) => {
-      console.log("Robot:", event.data);
-      addToLog("Robot: " + event.data);
-    };
-
-    channel.onclose = () => {
-      console.log("DataChannel closed");
-      addToLog("[System] Chat closed");
-    };
-  };
-
   const startStream = async () => {
-    if (!pcRef.current ) {
-      alert("Robot is not ready or peer connection not initialized. Please wait.");
-      return;
-    }
-
     const pc = pcRef.current;
-    try {
-      pc.addTransceiver("video", { direction: "recvonly" });
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socketRef.current.emit("offer", {
-        sdp: offer.sdp,
-        type: offer.type,
-      });
-      console.log("Offer sent to robot");
-    } catch (error) {
-      console.error("Error starting stream:", error);
-    }
-  };
-
-  const sendMessage = () => {
-    if (dataChannelRef.current?.readyState === "open") {
-      dataChannelRef.current.send(message);
-      addToLog("You: " + message);
-      setMessage("");
-    } else {
-      alert("Chat not ready");
-    }
-  };
-
-  const addToLog = (line) => {
-    setChatLog((prev) => [...prev, line]);
+    pc.addTransceiver("video", { direction: "recvonly" });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socketRef.current.emit("offer", {
+      sdp: offer.sdp,
+      type: offer.type
+    });
+    console.log("Offer sent");
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Live Robot Feed + Command Chat</h2>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ width: "640px", height: "360px", background: "#000" }}
-      />
-      <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-      <br />
-      <button onClick={startStream} disabled={!connected}>
-        Start Camera + Chat
-      </button>
-
-      <div style={{ marginTop: "20px" }}>
-        <h3>Command Chat</h3>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            border: "1px solid #ccc",
-            height: "150px",
-            padding: "10px",
-            overflowY: "auto",
-            background: "#000000ff",
-            color: "#fff",
-            marginBottom: "10px",
-          }}
-        >
-          {chatLog.map((line, idx) => (
-            <div key={idx}>{line}</div>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type command..."
-          style={{ width: "300px", marginRight: "10px" }}
-        />
-        <button onClick={sendMessage}>Send</button>
-      </div>
+    <div>
+      <h2>Robot Feed</h2>
+      <video ref={videoRef} autoPlay playsInline style={{ width: "640px" }} />
+      <button onClick={startStream}>Start Stream</button>
     </div>
   );
 }
