@@ -14,16 +14,15 @@ async function fetchIceServers() {
   //   return iceServers;
   // } catch (error) {
   //   console.error("Failed to fetch TURN credentials:", error);
-       return [{ urls: ["stun:stun.l.google.com:19302"]},
+       return [{ urls: ["stun:bn-turn1.xirsys.com"]},
         {
           
         // urls: "turn:global.relay.metered.ca:80",
         // username: "f42ebdd62391966c28dc7e37",
         // credential: "VVULqJQU+41ZKGZX",
         urls: [ "turn:bn-turn1.xirsys.com:80?transport=udp",
-                "turn:bn-turn1.xirsys.com:3478?transport=udp",
                 "turn:bn-turn1.xirsys.com:80?transport=tcp",
-                "turn:bn-turn1.xirsys.com:3478?transport=tcp"],
+            ],
         username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
         credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004",
         } 
