@@ -49,8 +49,7 @@ async def offer(data):
 @sio.event
 async def candidate(data):
     print("[Backend] Candidate received:", data)
-    # You can add ICE candidate handling here if needed
-    # but for simplicity let's assume no trickle ICE for now
+
 
 async def main():
     await sio.connect(SIGNALING_SERVER_URL)
