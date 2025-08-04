@@ -67,11 +67,18 @@ async def offer(data):
     global pc, dc, video_track
     print("[Backend] Offer received:", data)
 
-    # Configure ICE servers with STUN and TURN
+    # Configure ICE servers with STUN and TURN for cross-network connectivity
     ice_servers = [
+        # Google STUN servers
         RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
         RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+        RTCIceServer(urls=["stun:stun2.l.google.com:19302"]),
+        
+        # Additional STUN servers for better connectivity
+        RTCIceServer(urls=["stun:stun.stunprotocol.org:3478"]),
         RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+        
+        # TURN servers for NAT traversal (essential for cross-network)
         RTCIceServer(
             urls=[
                 "turn:bn-turn1.xirsys.com:80?transport=udp",
@@ -80,6 +87,13 @@ async def offer(data):
             ],
             username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
             credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        ),
+        
+        # Backup TURN server
+        RTCIceServer(
+            urls=["turn:global.relay.metered.ca:80"],
+            username="f42ebdd62391966c28dc7e37",
+            credential="VVULqJQU+41ZKGZX"
         )
     ]
 
@@ -122,12 +136,14 @@ async def offer(data):
     @pc.on("icecandidate")
     async def on_icecandidate(candidate):
         if candidate:
-            print("[Backend] Sending ICE candidate")
+            print(f"[Backend] Sending ICE candidate: {candidate.candidate[:50]}...")
             await sio.emit("candidate", {
                 "candidate": candidate.candidate,
                 "sdpMid": candidate.sdpMid,
                 "sdpMLineIndex": candidate.sdpMLineIndex
             })
+        else:
+            print("[Backend] ICE gathering completed")
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -135,6 +151,14 @@ async def offer(data):
         if pc.connectionState == "failed":
             print("[Backend] Connection failed, cleaning up...")
             await cleanup()
+
+    @pc.on("iceconnectionstatechange")
+    async def on_iceconnectionstatechange():
+        print(f"[Backend] ICE connection state changed: {pc.iceConnectionState}")
+        
+    @pc.on("icegatheringstatechange")
+    async def on_icegatheringstatechange():
+        print(f"[Backend] ICE gathering state changed: {pc.iceGatheringState}")
 
     await pc.setRemoteDescription(RTCSessionDescription(sdp=data["sdp"], type=data["type"]))
 

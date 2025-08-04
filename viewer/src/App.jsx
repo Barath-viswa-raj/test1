@@ -21,9 +21,16 @@ function App() {
   useEffect(() => {
     const init = async () => {
       const iceServers = [
+        // Google STUN servers
         { urls: ["stun:stun.l.google.com:19302"] },
         { urls: ["stun:stun1.l.google.com:19302"] },
+        { urls: ["stun:stun2.l.google.com:19302"] },
+        
+        // Additional STUN servers
+        { urls: ["stun:stun.stunprotocol.org:3478"] },
         { urls: ["stun:bn-turn1.xirsys.com"] },
+        
+        // TURN servers for NAT traversal
         {
           urls: [
             "turn:bn-turn1.xirsys.com:80?transport=udp",
@@ -32,6 +39,13 @@ function App() {
           ],
           username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
           credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        },
+        
+        // Backup TURN server
+        {
+          urls: ["turn:global.relay.metered.ca:80"],
+          username: "f42ebdd62391966c28dc7e37",
+          credential: "VVULqJQU+41ZKGZX"
         }
       ];
 
