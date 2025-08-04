@@ -1,105 +1,53 @@
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-const SIGNAL_URL = "https://application-8mai.onrender.com"; // your signaling server
+const SIGNAL_URL = "https://application-8mai.onrender.com"; // Your signaling server
 
 function App() {
-  const pcRef = useRef();
   const socketRef = useRef();
-  const dcRef = useRef();
-  const [status, setStatus] = useState("Disconnected");
+  const [snapshot, setSnapshot] = useState(null);
 
   useEffect(() => {
-    const init = async () => {
-      const iceServers = [
-        { urls: ["stun:bn-turn1.xirsys.com"] },
-        {
-          urls: [
-            "turn:bn-turn1.xirsys.com:80?transport=udp",
-            "turn:bn-turn1.xirsys.com:80?transport=tcp",
-            "turns:bn-turn1.xirsys.com:443?transport=tcp"
-          ],
-          username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-          credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004"
-        }
-      ];
+    // Connect to signaling server
+    socketRef.current = io(SIGNAL_URL);
 
-      socketRef.current = io(SIGNAL_URL);
-      socketRef.current.on("connect", () => {
-        console.log("✅ Connected to signaling server");
-        setStatus("Connected to signaling");
-      });
+    socketRef.current.on("connect", () => {
+      console.log("✅ Connected to signaling server");
+    });
 
-      socketRef.current.on("answer", async (data) => {
-        console.log("✅ Answer received from robot");
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data));
-      });
+    socketRef.current.on("disconnect", () => {
+      console.log("❌ Disconnected from signaling server");
+    });
 
-      socketRef.current.on("candidate", async (data) => {
-        console.log("✅ ICE candidate from robot");
-        await pcRef.current.addIceCandidate(new RTCIceCandidate(data));
-      });
-
-      const pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: "relay" });
-      pcRef.current = pc;
-
-      const dc = pc.createDataChannel("control");
-      dcRef.current = dc;
-
-      dc.onopen = () => {
-        console.log("✅ DataChannel opened");
-        setStatus("DataChannel connected");
-      };
-
-      dc.onmessage = (e) => {
-        console.log("📩 Message from robot:", e.data);
-      };
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          socketRef.current.emit("candidate", {
-            candidate: e.candidate.candidate,
-            sdpMid: e.candidate.sdpMid,
-            sdpMLineIndex: e.candidate.sdpMLineIndex
-          });
-        }
-      };
-    };
-
-    init();
+    // Receive snapshot
+    socketRef.current.on("snapshot", (data) => {
+      console.log("📸 Snapshot received from robot");
+      setSnapshot(`data:image/jpeg;base64,${data.image}`);
+    });
 
     return () => {
-      pcRef.current?.close();
-      socketRef.current?.disconnect();
+      socketRef.current.disconnect();
     };
   }, []);
 
-  const startConnection = async () => {
-    const pc = pcRef.current;
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socketRef.current.emit("offer", {
-      sdp: offer.sdp,
-      type: offer.type
-    });
-    console.log("📤 Offer sent");
-  };
-
-  const accessCamera = () => {
-    if (dcRef.current?.readyState === "open") {
-      dcRef.current.send("access-camera");
-      console.log("📤 Sent 'access-camera' command");
-    } else {
-      console.log("❌ DataChannel not open");
-    }
+  const requestSnapshot = () => {
+    console.log("📩 Requesting snapshot...");
+    socketRef.current.emit("take_snapshot");
   };
 
   return (
-    <div>
-      <h2>Robot Controller</h2>
-      <p>Status: {status}</p>
-      <button onClick={startConnection}>Start Connection</button>
-      <button onClick={accessCamera}>Access Camera (Only)</button>
+    <div style={{ textAlign: "center", padding: "2rem" }}>
+      <h2>Robot Camera Snapshot Viewer</h2>
+      <button onClick={requestSnapshot} style={{ padding: "10px 20px", fontSize: "16px" }}>
+        Take Snapshot
+      </button>
+      <div style={{ marginTop: "2rem" }}>
+        {snapshot ? (
+          <img src={snapshot} alt="Robot Snapshot" style={{ width: "480px", border: "1px solid #ccc" }} />
+        ) : (
+          <p>No snapshot yet</p>
+        )}
+      </div>
     </div>
   );
 }
