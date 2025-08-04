@@ -14,57 +14,70 @@ import aiohttp
 # Signal server URL
 SIGNALING_SERVER_URL = "https://application-8mai.onrender.com/"
 
-# Async function to fetch Metered TURN credentials
 async def fetch_ice_servers():
-    api_url = "https://applicationtestwebrtc.metered.live/api/v1/turn/credentials?apiKey=026cee6cbdb1ca82089a5f6658aba9787578"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    #print("Fetched ICE servers:", data)
-                    ice_servers = [
-                        RTCIceServer(urls=[item["url"]]) if "url" in item else RTCIceServer(
-                            urls=item.get("urls", []),
-                            username=item.get("username"),
-                            credential=item.get("credential")
-                        ) for item in data
-                    ]
-                    return ice_servers
-                else:
-                    print(f"Failed to fetch TURN credentials, status: {response.status}")
-                    return [
-                        RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
-                        RTCIceServer(
-                            urls=[
-                                "turn:bn-turn1.xirsys.com:80?transport=udp",
-                                "turn:bn-turn1.xirsys.com:3478?transport=udp",
-                                "turn:bn-turn1.xirsys.com:80?transport=tcp",
-                                "turn:bn-turn1.xirsys.com:3478?transport=tcp",
-                                "turns:bn-turn1.xirsys.com:443?transport=tcp",
-                                "turns:bn-turn1.xirsys.com:5349?transport=tcp"
-                            ],
-                            username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-                            credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
-                        )
-                    ]
-    except Exception as e:
-        print("Error fetching TURN credentials:", e)
-        return [
-            RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
-            RTCIceServer(
-                urls=[
-                    "turn:bn-turn1.xirsys.com:80?transport=udp",
-                    "turn:bn-turn1.xirsys.com:3478?transport=udp",
-                    "turn:bn-turn1.xirsys.com:80?transport=tcp",
-                    "turn:bn-turn1.xirsys.com:3478?transport=tcp",
-                    "turns:bn-turn1.xirsys.com:443?transport=tcp",
-                    "turns:bn-turn1.xirsys.com:5349?transport=tcp"
-                ],
-                username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-                credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
-            )
-        ]
+    return [
+        RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+        RTCIceServer (
+        # urls = ["turn:global.relay.metered.ca:80"],
+        # username = "f42ebdd62391966c28dc7e37",
+        # credential =  "VVULqJQU+41ZKGZX",
+        urls = ["turn:bn-turn1.xirsys.com:80?transport=udp",
+                "turn:bn-turn1.xirsys.com:80?transport=tcp",
+               ],
+        username = "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+        credential = "c0f43e62-4cd4-11f0-aba7-0242ac140004",
+        )
+    ]
+     # api_url = "https://applicationtestwebrtc.metered.live/api/v1/turn/credentials?apiKey=026cee6cbdb1ca82089a5f6658aba9787578"
+    # try:
+    #     async with aiohttp.ClientSession() as session:
+    #         async with session.get(api_url) as response:
+    #             if response.status == 200:
+    #                 data = await response.json()
+    #                 print("Fetched ICE servers:", data)
+    #                 ice_servers = [
+    #                      RTCIceServer(
+    #                         urls=item.get("urls", []),
+    #                         username=item.get("username",""),
+    #                         credential=item.get("credential","")
+    #                     ) for item in data
+    #                 ]
+    #                 print("Parsed ICE servers:", ice_servers.username)
+    #                 return ice_servers
+    #             else:
+    #                 print(f"Failed to fetch TURN credentials, status: {response.status}")
+    #                 return [
+    #                     RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+    #                     RTCIceServer(
+    #                         urls=[
+    #                             "turn:bn-turn1.xirsys.com:80?transport=udp",
+    #                             "turn:bn-turn1.xirsys.com:3478?transport=udp",
+    #                             "turn:bn-turn1.xirsys.com:80?transport=tcp",
+    #                             "turn:bn-turn1.xirsys.com:3478?transport=tcp",
+    #                             "turns:bn-turn1.xirsys.com:443?transport=tcp",
+    #                             "turns:bn-turn1.xirsys.com:5349?transport=tcp"
+    #                         ],
+    #                         username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+    #                         credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
+    #                     )
+    #                 ]
+    # except Exception as e:
+    #     print("Error fetching TURN credentials:", e)
+    #     return [
+    #         RTCIceServer(urls=["stun:bn-turn1.xirsys.com"]),
+    #         RTCIceServer(
+    #             urls=[
+    #                 "turn:bn-turn1.xirsys.com:80?transport=udp",
+    #                 "turn:bn-turn1.xirsys.com:3478?transport=udp",
+    #                 "turn:bn-turn1.xirsys.com:80?transport=tcp",
+    #                 "turn:bn-turn1.xirsys.com:3478?transport=tcp",
+    #                 "turns:bn-turn1.xirsys.com:443?transport=tcp",
+    #                 "turns:bn-turn1.xirsys.com:5349?transport=tcp"
+    #             ],
+    #             username="Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+    #             credential="c0f43e62-4cd4-11f0-aba7-0242ac140004"
+    #         )
+    #     ]
 
 # Global variables
 pc = None
@@ -75,7 +88,10 @@ player = None
 async def setup_media():
     global player
     try:
-        player = MediaPlayer("test-video.webm")
+        player = MediaPlayer(
+            "video=Chicony USB2.0 Camera",
+            format="dshow"
+        )
         if player.video:
             print("Media player initialized with video track")
             return player.video
@@ -92,10 +108,12 @@ async def main():
     rtc_config = RTCConfiguration(iceServers=ice_servers)
     pc = RTCPeerConnection(configuration=rtc_config)
 
+    print(f"Connection state changed: {pc.connectionState}")
+
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
         print(f"Connection state changed: {pc.connectionState}")
-        if pc.connectionState == "failed":
+        if pc.connectionState == "disconnected":
             print("Connection failed, attempting to close...")
             await pc.close()
         elif pc.connectionState == "connected":
@@ -114,18 +132,19 @@ async def main():
         if event.candidate:
             print(f"Sending ICE candidate: {event.candidate}")
             await sio.emit("candidate", {
-                "component": event.candidate.component,
-                "foundation": event.candidate.foundation,
-                "priority": event.candidate.priority,
-                "protocol": event.candidate.protocol,
-                "ip": event.candidate.ip,
-                "port": event.candidate.port,
-                "type": event.candidate.type,
-                "sdpMid": event.candidate.sdpMid,
-                "sdpMLineIndex": event.candidate.sdpMLineIndex
+                "candidate": event.candidate,
+                # "component": event.candidate.component,
+                # "foundation": event.candidate.foundation,
+                # "priority": event.candidate.priority,
+                # "protocol": event.candidate.protocol,
+                # "ip": event.candidate.ip,
+                # "port": event.candidate.port,
+                # "type": event.candidate.type,
+                # "sdpMid": event.candidate.sdpMid,
+                # "sdpMLineIndex": event.candidate.sdpMLineIndex
             })
         else:
-            print("✅ ICE candidate gathering complete")
+            print("ICE candidate gathering complete")
 
     @pc.on("datachannel")
     def on_datachannel(channel):
