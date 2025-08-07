@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import "./App.css";
 
-// Use environment variable for signaling server URL
+
 const SIGNAL_URL = import.meta.env.VITE_SIGNALING_SERVER_URL || "https://application-8mai.onrender.com";
 
 function App() {
@@ -21,35 +21,28 @@ function App() {
   useEffect(() => {
     const init = async () => {
       const iceServers = [
-        // Google STUN servers
-        { urls: ["stun:stun.l.google.com:19302"] },
-        { urls: ["stun:stun1.l.google.com:19302"] },
-        { urls: ["stun:stun2.l.google.com:19302"] },
+        // { urls: ["stun:stun.l.google.com:19302"] },
+        // { urls: ["stun:stun1.l.google.com:19302"] },
+        // { urls: ["stun:stun2.l.google.com:19302"] },
         
-        // Additional STUN servers
-        { urls: ["stun:stun.stunprotocol.org:3478"] },
-        { urls: ["stun:bn-turn1.xirsys.com"] },
+        // { urls: ["stun:bn-turn1.xirsys.com"] },
         
-        // TURN servers for NAT traversal
+        // {
+        //   urls: [
+        //     "turn:bn-turn1.xirsys.com:80?transport=udp",
+        //     "turn:bn-turn1.xirsys.com:80?transport=tcp",
+        //     "turns:bn-turn1.xirsys.com:443?transport=tcp"
+        //   ],
+        //   username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
+        //   credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004"
+        // },
         {
-          urls: [
-            "turn:bn-turn1.xirsys.com:80?transport=udp",
-            "turn:bn-turn1.xirsys.com:80?transport=tcp",
-            "turns:bn-turn1.xirsys.com:443?transport=tcp"
-          ],
-          username: "Jc0EzhdGBYiCzaKjrC1P7o2mcXTo6TlM_E9wjvXn16Eqs7ntsZaGMeRVAxM4m31rAAAAAGhTqu5CYXJhdGg=",
-          credential: "c0f43e62-4cd4-11f0-aba7-0242ac140004"
-        },
-        
-        // Backup TURN server
-        {
-          urls: ["turn:global.relay.metered.ca:80"],
-          username: "f42ebdd62391966c28dc7e37",
-          credential: "VVULqJQU+41ZKGZX"
+          urls: ["turn:139.59.66.172:3478"],
+          username: "robotcoturn",
+          credential: "robot@123"
         }
       ];
 
-      // Initialize Socket.IO connection
       socketRef.current = io(SIGNAL_URL);
       
       socketRef.current.on("connect", () => {
